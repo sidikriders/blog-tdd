@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Blog | TDD</title>
+  <script src="https://unpkg.com/vue"></script>
+  <script src="https://code.jquery.com/jquery-3.2.1.js" integrity="sha256-DZAnKJ/6XZ9si04Hgrsxu/8s717jcIzLy3oi35EouyE=" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/js/materialize.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css">
+</head>
+
+<body>
+  <div id="appVue">
+    <h5 style="width: 100vw; text-align: center;"> {{welcomeMessage}} </h5>
+    <div v-if='isLogin == false'>
+      <div class="row" style="width: 60vw;">
+        <div class="col s6">
+          <p>Silahkan Buat akun</p>
+          <br><br>
+          <input type="text" v-model="newUsername" placeholder="username">
+          <br><br>
+          <input type="password" v-model="newPass" placeholder="password">
+          <br><br>
+          <input type="text" v-model="newFullName" placeholder="full name">
+          <br><br>
+          <button type="button" v-on:click=signup()>Sign Up</button>
+        </div>
+        <div class="col s6">
+          <p>{{loginMessage}}</p>
+          <br><br>
+          <input type="text" v-model="userLogin" placeholder="username">
+          <br><br>
+          <input type="password" v-model="passLogin" placeholder="password">
+          <br><br>
+          <button type="button" v-on:click=login()>Log In</button>
+        </div>
+      </div>
+
+
+      <br><br><br>
+
+    </div>
+    <div v-else-if='isLogin == true'>
+      <button type="button" v-on:click=logout()>Log Out</button>
+      <br><br><br>
+      <div class="row">
+        <blog-list :blogs="blogs" v-on:hapus=deleteBlog v-on:edit=mauUpdate></blog-list>
+        <!-- sisi kanan -->
+        <articlecontent v-on:update=updateBlog :newposttitle='newPostTitle' :newpostisi='newPostIsi' class="col s6"></articlecontent>
+
+      </div>
+
+
+      <div id="modal1" class="modal">
+        <div class="modal-content">
+          <h4>Made New Post</h4>
+          <input type="text" v-model='newPostTitle' placeholder="New Title">
+          <textarea name="name" style="height: 15vw;" rows="8" cols="80" v-model='newPostIsi'></textarea>
+        </div>
+        <div class="modal-footer">
+          <a v-on:click=newBlog() class="modal-action modal-close waves-effect waves-green btn-flat">Post</a>
+          <a v-on:click=cancelNewBlog() class="modal-action modal-close waves-effect waves-green btn-flat">Cancel</a>
+        </div>
+      </div>
+
+
+
+    </div>
+  </div>
+
+
+  <script type="text/javascript">
+
+  Vue.component('articlecontent', {
+    props: ['newposttitle', 'newpostisi'],
+    template: `
+    <form class="" action="" method="">
+      <input type="text" v-model=newposttitle>
+      <br><br>
+      <textarea name="name" style="height: 15vw;" rows="8" cols="80" v-model=newpostisi></textarea>
+      <br><br>
+      <button type="button" v-on:click="update(newposttitle, newpostisi)">Update</button>
+    </form>
+    `,
+    methods: {
+      update: function(newposttitle, newpostisi) {
+
+        this.$emit('update', newposttitle, newpostisi)
+      }
+    }
+  })
+
+  Vue.component('blog-list', {
+    props: ['blogs'],
+    template: `
+    <div class="col s6">
+      <a class="waves-effect waves-light btn" href="#modal1">Create New Post</a>
+      <ol style="list-style: none;">
+        <li v-for='blog in blogs'>
+          <h3>{{blog.title}}</h3>
+          <div class="waves-effect waves-green btn-flat" v-on:click="hapus(blog._id)">
+            <a >Delete</a>
+          </div>
+          <div class="waves-effect waves-green btn-flat" v-on:click="edit(blog._id, blog.title, blog.isi)">
+            <a >Edit</a>
+          </div>
+        </li>
+      </ol>
+    </div>
+    `,
+    methods: {
+    hapus: function(_id) {
+      this.$emit('hapus', _id)
+    },
+    edit: function(_id, title, isi) {
+
+      this.$emit('edit', _id, title, isi)
+    }
+  }
+  })
+
+    var app = new Vue({
+      el: '#appVue',
+      data: {
+        welcomeMessage: 'Selamat datang di blog - TDD',
+        isLogin: false,
+        newFullName: '',
+        newPass: '',
+        newUsername: '',
+        userLogin: '',
+        passLogin: '',
+        loginMessage: 'Sudah punya akun? silahkan Login ▼',
+        activeUser: {},
+        blogs: [],
+        newPostTitle: '',
+        newPostIsi: '',
+        updatePostId: ''
+      },
+      created: function() {
+        let token = localStorage.getItem('token')
+        console.log('token');
+        console.log(token);
+        if (token !== null && token !== undefined) {
+          this.isLogin = true;
+          this.activeUser = JSON.parse(token)
+          console.log(this.activeUser);
+          this.welcomeMessage = 'Hai ' + this.activeUser.full_name + ', apa kabar?'
+          let self = this
+          axios.get(`http://localhost:3000/artikel/${self.activeUser._id}`)
+            .then(function(responze) {
+              console.log('rezponse dari get artikel');
+              console.log(responze);
+              self.blogs = responze.data;
+            })
+        }
+      },
+      mounted: function() {
+        $(document).ready(function() {
+          $('.modal').modal();
+        })
+      },
+      methods: {
+        signup: function() {
+          let self = this
+          axios.post('http://localhost:3000/signup', {
+              newUser: self.newUsername,
+              newPass: self.newPass,
+              newFullName: self.newFullName
+            })
+            .then(function(response) {
+              console.log(response);
+              self.newUsername = ''
+              self.newPass = ''
+              self.newFullName = ''
+              self.welcomeMessage = 'Akun berhasil di buat silahkan Login'
+            })
+            .catch(function(error) {
+              console.log(error);
+            });
+        },
+        login: function() {
+          let self = this
+          axios.post('http://localhost:3000/login', {
+              currUser: self.userLogin,
+              currPass: self.passLogin
+            })
+            .then(function(response) {
+              if (response.data == 'salah password') {
+                self.passLogin = '';
+                self.loginMessage = 'Password salah'
+              } else if (response.data == 'username tidak di temukan') {
+                self.passLogin = '';
+                self.userLogin = '';
+                self.loginMessage = 'Username tidak ditemukan'
+              } else {
+                self.passLogin = '';
+                self.userLogin = '';
+                console.log(JSON.stringify(response.data));
+                self.activeUser = response.data;
+                self.isLogin = true;
+                localStorage.setItem('token', JSON.stringify(response.data))
+                self.welcomeMessage = 'Hai ' + response.data.full_name + ', apa kabar?'
+                axios.get(`http://localhost:3000/artikel/${self.activeUser._id}`)
+                  .then(function(responze) {
+                    self.blogs = responze.data;
+                    location.reload();
+                  })
+              }
+            })
+        },
+        logout: function() {
+          let self = this
+          axios.get('http://localhost:3000/logout')
+            .then(function(response) {
+              console.log(response);
+              if (response.data == 'anda sudah berhasil logout') {
+                localStorage.clear();
+                self.isLogin = false;
+                self.activeUser = {};
+                self.blogs = [];
+                self.welcomeMessage = 'Selamat datang di blog - TDD';
+                location.reload();
+              }
+            })
+        },
+        newBlog: function() {
+          let self = this
+
+          console.log('ini self.activeUser._id');
+          console.log(self.activeUser._id);
+          axios.post('http://localhost:3000/artikel/new', {
+              newTitle: self.newPostTitle,
+              newIsi: self.newPostIsi,
+              user_id: self.activeUser._id
+            })
+            .then(function(response) {
+              console.log(response);
+              self.newPostTitle = ''
+              self.newPostIsi = ''
+              axios.get(`http://localhost:3000/artikel/${self.activeUser._id}`)
+                .then(function(responze) {
+                  console.log('harusnya sih sudah ke update real time');
+                  console.log(responze.data);
+                  self.blogs = responze.data;
+                })
+            })
+        },
+        cancelNewBlog: function() {
+          this.newPostTitle = '';
+          this.newPostIsi = '';
+        },
+        deleteBlog: function(_id) {
+          let self = this
+          console.log('dah masuk ke fungsi delete');
+          axios.delete('http://localhost:3000/artikel/' + _id)
+            .then(function(response) {
+              console.log(response);
+              axios.get('http://localhost:3000/artikel/' + self.activeUser._id)
+                .then(function(responze) {
+                  self.blogs = responze.data;
+                })
+            })
+        },
+        mauUpdate: function(id, title, isi) {
+          this.newPostTitle = title;
+          this.newPostIsi = isi;
+          this.updatePostId = id;
+          console.log(id);
+          console.log(`masuk fungsi edit ${this.newPostIsi} ${this.newPostTitle}`);
+        },
+        updateBlog: function(title, isi) {
+          let self = this
+          console.log('masuk method update');
+          console.log('title : '+title);
+          console.log('isi : ' + isi);
+          axios.put('http://localhost:3000/artikel',{
+            id: self.updatePostId,
+            newTitle: title,
+            newIsi: isi
+          })
+          .then(function(response) {
+            axios.get(`http://localhost:3000/artikel/${self.activeUser._id}`)
+              .then(function(responze) {
+                console.log('rezponse dari get artikel');
+                console.log(responze);
+                self.blogs = responze.data;
+              })
+          })
+        }
+      }
+    })
+
+    // Vue.component('editor-blog', {
+    //   template: `<input type="text" placeholder="judul" /><br><textarea name="name" rows="8" cols="80"></textarea>`,
+    //   props: ['blog']
+    // })
+
+
+
+  </script>
+
+</body>
+
+</html>
